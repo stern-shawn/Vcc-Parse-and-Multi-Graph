@@ -1,0 +1,117 @@
+//!
+// This script takes the csv file containing VCC characterization data
+// and generates an i-v curve for each power supply.  That curve can be 
+// used for determining the appropriate force value and limit, per the 
+// VCC Continuity BKM.
+//
+// Rev 1.0 1/16/14 C. Reiten
+
+// Rev 2.0 2/27/14 C. Reiten 	-Added feature to graph by Instance using the Instance column
+
+// Rev 3.0 3/12/14 S. Stern 	-Modified script to overlay IV curves corresponding to a single supply, distinguished by "instance" for easy comparison of multiple die at 1st Si. 
+//								-Fixed bug that was causing selecting a single supply to still plot all supplies.
+
+// Rev 3.1 3/26/14 S. Stern 	-Output now includes a "Vcc Statistics" table of mean, sigma, and mean + 6 sigma limits for each power supply.
+
+
+//DataFile = open(); // Use this option if you want the user to select the csv file from their computer.
+DataFile = open("Vcc_Cont.csv"); // This requires that the script be placed in the same folder as the Vcc_Cont.csv file that is output from the perl script
+
+// Create a summary table consisting of all power supply names
+DataFile << Summary( Group( :Supply_Name ), output table("SupplySummary") );
+
+// Create an array of all power supplies
+SupplyList = Data Table("SupplySummary");
+SupplyCount = N Rows(SupplyList);
+powersupply = {"reset"};
+powersupply[1] = "All";
+for(i=2, i< SupplyCount+2, i++,
+	powersupply[i] = :Supply_Name[i-1];
+);
+
+// Grab user choice of all supplies or one supply
+dLog = New Window(
+	"Temp",
+	<<Modal,
+	
+	Border Box(
+		Top(5), Bottom(10), Left(15), Right(15),
+		H List Box(
+			Text Box("Choose a Supply or Select All for all supplies "),
+			SupplyBox = Combo Box(powersupply)
+		)
+	),
+	H List Box(Button Box( "OK"), Text Box("               "), Button Box( "Cancel"))
+);
+
+ChosenSupply = SupplyBox << Get Selected;
+Close(SupplyList);
+
+// Plot results
+If(ChosenSupply == "All",
+	// New method: each plot is one supply, all instances overlapping
+	Overlay Plot(
+		X( :Force ),
+		Y( :Measure ),
+		Grouping( :Instance ),
+		By( :Supply_Name ),
+		Overlay Groups,
+		Connect Points( 1 ),
+		SendToReport( Dispatch( {}, "", LegendBox, {Set Title( "Groups" )} ) )
+	);
+	
+	// Previous method, all plots separated
+	/*Bivariate(
+		SendToByGroup( {:Supply_Name == powersupply[i]} ),
+		Y( :Measure ),
+		X( :Force ),
+		Fit each value( {Line Color( "Red" )} ),
+		By( :Supply_Name, :Instance ),
+		//By( :Supply_Name ),
+		SendToByGroup(
+			{:Supply_Name == powersupply[i]},
+			SendToReport(
+				Dispatch(
+					{"Bivariate Fit of Measure By Force Supply_Name=powersupply[i]"},
+					"Bivar Plot",
+					FrameBox,
+					Frame Size( 600, 300), Marker Size( 3 )
+				)
+			)
+		)
+	) */
+);
+
+If(ChosenSupply != "All",
+	Overlay Plot(
+		X( :Force ),
+		Y( :Measure ),
+		Grouping( :Instance ),
+		By( :Supply_Name ),
+		Overlay Groups,
+		Connect Points( 1 ),
+		Where( :Supply_Name == ChosenSupply ),
+		SendToReport( Dispatch( {}, "", LegendBox, {Set Title( "Groups" )} ) )
+	)
+	
+	/*Bivariate(
+		SendToByGroup( {:Supply_Name == ChosenSupply} ),
+		Y( :Measure ),
+		X( :Force ),
+		Fit Each Value( {Line Color( "Red" )} ),
+		By( :Supply_Name, :Instance ),
+		SendToByGroup(
+			{:Supply_Name == ChosenSupply}
+		)
+	)*/
+);
+
+// Data table of Vcc Statistics
+dt = Data Table( "Vcc_Cont" ) << Summary(
+	Group( :Supply_Name ),
+	Mean( :Measure ),
+	Std Dev( :Measure ),
+	output table name( "Vcc Statistics" )
+);
+
+dt << New Column("Mean + 6 Sigma", Numeric, Continuous, Formula( :Name( "Mean(Measure)" ) + :Name( "Std Dev(Measure)" ) * 6 ), Lock( 1 ));

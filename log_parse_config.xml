@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<config>
+    <Module opt="1">
+        <name>Vcc_Cont</name>
+        <column_headers>
+            <header>Instance</header>
+            <header>Supply_Name</header>
+            <header>Test_Number</header>
+            <header>Status</header>
+            <header>Force</header>
+            <header>Measure</header>
+        </column_headers>
+        <begin_block_regex>^Pin:.*</begin_block_regex>
+        <lines_to_skip>3</lines_to_skip>
+        <unique_label_regex>^Pin:\s+(\w+),</unique_label_regex>
+        <data_regex>^\s+\d+</data_regex>
+        <parse_regex>^\s+(\d+)\s+(\w+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)</parse_regex>
+    </Module>
+    <Module opt="2">
+        <name>VIPR</name>
+        <column_headers>
+            <header>Pin_Num</header>
+            <header>mVolt</header>
+            <header>mRes</header>
+        </column_headers>
+        <begin_block_regex>^The various readings for various pins are as follows.*</begin_block_regex>
+        <unique_label_regex></unique_label_regex>
+        <lines_to_skip>1</lines_to_skip>
+        <data_regex>^\s*Pin\# = \d+,</data_regex>
+        <parse_regex>^\s*Pin\# = (\d+),.*mVolt = (-?\d+),\s+mRes = (-?\d+)$</parse_regex>
+    </Module>
+</config>
